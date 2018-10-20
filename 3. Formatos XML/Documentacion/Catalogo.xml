@@ -1,0 +1,32 @@
+<catalogo>
+    <Libro isbn="0-596-00128-2">
+        <titulo>Python y XML</titulo>
+        <fecha>Diciembre 2001</fecha>
+        <autor>Pepito Perez</autor>
+    </Libro>
+    <Libro isbn="0-596-15810-6">
+        <titulo>Programacion avanzada de XML</titulo>
+        <fecha>Octoubre 2010</fecha>
+        <autor>Juan Garcia</autor>
+    </Libro>
+    <Libro isbn="0-596-15806-8">
+        <titulo>Aprendiendo Java</titulo>
+        <fecha>Septiembre 2009</fecha>
+        <autor>Juan Garcia</autor>
+    </Libro>
+    <Libro isbn="0-596-15808-4">
+        <titulo>Python para moviles</titulo>
+        <fecha>Octubre 2009</fecha>
+        <autor>Pepito Perez</autor>
+    </Libro>
+    <Libro isbn="0-596-00797-3">
+        <titulo>R para estadistica</titulo>
+        <fecha>Marzo 2005</fecha>
+        <autor>Juan, Pepe, Isabel</autor>
+    </Libro>
+    <Libro isbn="0-596-10046-9">
+        <titulo>Python en 100 paginas</titulo>
+        <fecha>Julio 2006</fecha>
+        <autor>Julia</autor>
+    </Libro>
+</catalogo>
