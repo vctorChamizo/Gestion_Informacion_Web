@@ -44,6 +44,8 @@ def makeFindUsersQuery(name, surname, birthdate):
 
     return query
 
+
+
 # Find users
 @get('/find_users')
 def find_users():
@@ -68,6 +70,8 @@ def find_users():
     # http://localhost:8080/find_users?name=Luz&surname=Romero&birthdate=2006-08-14
     # http://localhost:8080/find_users?name=Luz&food=paella&car=Audi
 
+
+
 # Users born between two dates
 @get('/find_email_birthdate')
 def email_birthdate():
@@ -82,6 +86,8 @@ def email_birthdate():
     return template('tableBirthdate.html', nUsers = resultQuery.count(), resultQuery = resultQuery)
 
     # http://localhost:8080/find_email_birthdate?from=1973-01-01&to=1990-12-31
+
+
 
 # Users with matching likes
 @get('/find_country_likes_limit_sorted')
@@ -98,6 +104,8 @@ def find_country_likes_limit_sorted():
     return template('tableBirthdate.html', nUsers = resultQuery.count(), resultQuery = resultQuery)
 
     # http://localhost:8080/find_country_likes_limit_sorted?country=Irlanda&likes=movies,animals&limit=4&ord=asc
+
+
 
 # Users born on a specific date
 @get('/find_birth_month')
@@ -117,6 +125,7 @@ def find_birth_month():
     # http://localhost:8080/find_birth_month?month=abril
 
 
+
 # Users who dont have hobbies completed in the suffix
 @get('/find_likes_not_ending')
 def find_likes_not_ending():
@@ -131,12 +140,14 @@ def find_likes_not_ending():
 
     # http://localhost:8080/find_likes_not_ending?ending=s
 
+
+
 # Users born in leap years
 @get('/find_leap_year')
 def find_leap_year():
 
 	exp = request.query.get("exp")
-
+    
     query = {'credit_card.expire.year' : {'$eq' : exp}, '$where' :
                 """function() {
     	            let yearOfBirth = this.birthdate.substr(0,4);
