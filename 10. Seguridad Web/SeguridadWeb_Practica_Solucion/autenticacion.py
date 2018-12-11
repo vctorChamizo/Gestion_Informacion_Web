@@ -24,15 +24,15 @@ PEPPER = "a21g01m96v1c9"
 # Templates path
 TEMPLATE_PATH.insert(0, "views")
 
-# Inicializacion de BD
+# Initialization of DB
 client = MongoClient()
 db = client.giw_prac10
 users = db.users
 
+
 ##############
 # APARTADO 1 #
 ##############
-
 # 
 # Explicación detallada del mecanismo escogido para el almacenamiento de
 # contraseñas, explicando razonadamente por qué es seguro
@@ -52,11 +52,13 @@ def signup():
     pass2 = request.forms.get("password2")
     nickname = request.forms.get("nickname")
     name = request.forms.get("name")
+    email = request.forms.get("email")
+    country = request.forms.get("country")
 
-    if pass1 != pass2: return template('err_msg.html', err = "Las constraseñas no coinciden.")
+    if pass1 != pass2: return template('info_msg.html', msg = "ERROR: Las constraseñas no coinciden.")
     
     q = users.find({"nickname" : nickname})
-    if q.count() > 0: return template('err_msg.html', err = "El alias de usuario ya existe.")
+    if q.count() > 0: return template('info_msg.html', msg = "ERROR: El alias de usuario ya existe.")
     
     encryptPassword = encrypt(pass1)
 
@@ -64,14 +66,12 @@ def signup():
     newUser['nickname'] = nickname
     newUser['password'] = encryptPassword
     newUser['name'] = name
-    newUser['email'] = request.forms.get("email")
-    newUser['country'] = request.forms.get("country")
+    newUser['email'] = email
+    newUser['country'] = country
 
     users.insert(newUser)
 
-    msg = "Bienvenido usuario " + name + "."
-
-    return template('info_msg.html', msg = msg)
+    return template('info_msg.html', msg = "Bienvenido usuario " + name + ".")
 
 
 @post('/change_password')
@@ -80,20 +80,30 @@ def change_password():
     old_pass = request.forms.get("old_password")
     new_pass = request.forms.get("new_password")
     nickname = request.forms.get("nickname")
-            
-    q = users.find({"nickname" : nickname, "password": old_pass})
-    if q.count() > 0: return template('err_msg.html', err = "Usuario o contraseña incorrectos.")
 
-    encryptPassword = encrypt(new_pass)
+    q = users.find({"nickname" : nickname}, {"password": 1})
 
-    msg = "La contraselña del usuario " + nickname + " ha sido modificada."
+    if passValidate(old_pass, q[0]['password']) == False: return template('info_msg.html', msg = "ERROR: Usuario o contraseña incorrectos.")
+    
+    encryptNewPassword = encrypt(new_pass)
 
-    return template('info_msg.html', msg = msg)
+    users.update({"nickname" : nickname}, {"$set": {"password": encryptNewPassword}})
+
+    return template('info_msg.html', msg = "La contraseña del usuario " + nickname + " ha sido modificada.")
     
 
 @post('/login')
 def login():
-    pass
+    
+    password = request.forms.get("password")
+    nickname = request.forms.get("nickname")
+
+    q = users.find({"nickname" : nickname}, {"_id": 0, "password": 1, "name": 1})
+
+    msg = "Bienvenido usuario " + q[0]['name'] + "."
+
+    if passValidate(password, q[0]['password']): return template('info_msg.html', msg = msg)
+    else : return template('info_msg.html', msg = "ERROR: Usuario o contraseña incorrectos.")
 
 
 ##############
@@ -107,7 +117,21 @@ def login():
 
 @post('/signup_totp')
 def signup_totp():
-    pass
+    
+    pass1 = request.forms.get("password")
+    pass2 = request.forms.get("password2")
+    nickname = request.forms.get("nickname")
+    name = request.forms.get("name")
+    email = request.forms.get("email")
+    country = request.forms.get("country")
+
+    if pass1 != pass2: return template('info_msg.html', msg = "ERROR: Las constraseñas no coinciden.")
+    
+    q = users.find({"nickname" : nickname})
+    if q.count() > 0: return template('info_msg.html', msg = "ERROR: El alias de usuario ya existe.")
+        
+
+
         
         
 @post('/login_totp')        
