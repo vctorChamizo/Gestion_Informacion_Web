@@ -1,142 +1,192 @@
-# -*- coding: utf-8 -*-
+## ASIGNATURA : GESTIÓN DE INFORMACIÓN EN LA WEB
+## PRÁCTICA Autenticacion & TOTP
+## GRUPO 10
+## AUTORES: Victor Chamizo Rodriguez, Pablo García Hernandez, Fernando López Carrión, Irene Martín Berlanga y Sergio Martín Gómez
+
+## Victor Chamizo Rodriguez, Pablo García Hernandez, Fernando López Carrión, Irene Martín Berlanga y Sergio Martín Gómez declaramos
+## que esta solución es fruto exclusivamente de nuestro trabajo personal. No hemos sido ayudados por ninguna otra persona ni hemos 
+## obtenido la solución de fuentes externas, y tampoco hemos compartido nuestra solución con nadie. Declaramos además que no hemos 
+## realizado de manera deshonesta ninguna otra actividad que pueda mejorar nuestros resultados ni perjudicar los resultados de los demás.
 
 
-# Asignatura: Gestión de la Información Web
-# Práctica: Consultas MongoDB
-# Grupo: 10
-# Autores: Sergio Martín, Víctor Chamizo, Fernando Lopez, Pablo Garcia e Irene Martín declaramos
-# que esta solución es fruto exclusivamente de nuestro trabajo personal. No hemos sido ayudados
-# por ninguna otra persona ni hemos obtenido la solución de fuentes externas, y tampoco hemos compartido
-# nuestra solución con nadie. Declaramos ademáss que no hemos realizado de manera deshonesta ninguna otra
-# actividad que pueda mejorar nuestros resultados ni perjudicar los resultados de los demás.
-
-
-# Imports
-from bottle import get, post, run, template, request, TEMPLATE_PATH
+from bottle import run, post, request, template
 from pymongo import MongoClient
 from passlib.hash import pbkdf2_sha256
 import hashlib
 import random
+import onetimepass as otp
+import base64
 
-#Constants
-PEPPER = "a21g01m96v1c9"
-
-# Templates path
-TEMPLATE_PATH.insert(0, "views")
-
-# Initialization of DB
 client = MongoClient()
-db = client.giw_prac10
+db = client.giw
 users = db.users
 
+pepper = "1djkn71iu872njd"
 
 ##############
 # APARTADO 1 #
 ##############
-# 
-# Explicación detallada del mecanismo escogido para el almacenamiento de
-# contraseñas, explicando razonadamente por qué es seguro
-#
 
-def encrypt (password):
-    return pbkdf2_sha256.using(rounds = 100000).hash(password + PEPPER)
+# El mecanismo utilizado para almacenar las contraseñas es generar un hash mediante
+# un algoritmo de hash criptográfico utilizando además el algoritmo de ralentización pbkdf2. 
+# El algoritmo utilizado genera una sal de 16 bytes por defecto, como se puede ver en la 
+# documentación https://passlib.readthedocs.io/en/stable/lib/passlib.hash.pbkdf2_digest.html#passlib.hash.pbkdf2_sha256
+# Además de la sal se utiliza una cadena constante que está en el código, llamada pimienta.
+# El hash generado por este método contiene el algoritmo de ralentización utilizado (pbkdf2), la
+# función criptográfica utilizada (SHA-256), la sal y el hash resultante. 
 
-def passValidate (password, hash):
-    return pbkdf2_sha256.verify(password + PEPPER, hash)
+# Almacenar las contraseñas de esta manera es seguro ya que dos contraseñas iguales no darán
+# como resultado el mismo hash debido a la aleatoriedad de la sal. Además un ataque de fuerza
+# es inviable ya que al ralentizar la función hash el tiempo necesario para encontrar la contraseña
+# asociada a un hash es demasiado elevado. 
+
+
+def encrypt(password):
+	return pbkdf2_sha256.using(rounds=100000).hash(password + pepper)
+
+def passwordIsCorrect(password, hash):
+	return pbkdf2_sha256.verify(password + pepper, hash)
 
 
 @post('/signup')
 def signup():
+	nickname = request.forms.get("nickname")
+	name = request.forms.get("name")
+	country = request.forms.get("country")
+	email = request.forms.get("email")
+	password = request.forms.get("password")
+	password2 = request.forms.get("password2")
 
-    pass1 = request.forms.get("password")
-    pass2 = request.forms.get("password2")
-    nickname = request.forms.get("nickname")
-    name = request.forms.get("name")
-    email = request.forms.get("email")
-    country = request.forms.get("country")
+	if password != password2:
+		return template("mensaje_de_error", mensajeDeError="Las contraseñas no coinciden.")
 
-    if pass1 != pass2: return template('info_msg.html', msg = "ERROR: Las constraseñas no coinciden.")
+	userExists = users.find({'_id' : nickname}).count();
+
+	if userExists:
+		return template("mensaje_de_error", mensajeDeError="El alias de usuario ya existe.")
+
+	encryptedPassword = encrypt(password)
+
+	users.insert_one({'_id' : nickname, 'name' : name, 'country' : country, 'email' : email, 'password' : encryptedPassword})	
+	
+	return template("correcto", message="Bienvenido usuario " + name)
     
-    q = users.find({"nickname" : nickname})
-    if q.count() > 0: return template('info_msg.html', msg = "ERROR: El alias de usuario ya existe.")
-    
-    encryptPassword = encrypt(pass1)
-
-    newUser = {}
-    newUser['nickname'] = nickname
-    newUser['password'] = encryptPassword
-    newUser['name'] = name
-    newUser['email'] = email
-    newUser['country'] = country
-
-    users.insert(newUser)
-
-    return template('info_msg.html', msg = "Bienvenido usuario " + name + ".")
-
-
 @post('/change_password')
 def change_password():
-
-    old_pass = request.forms.get("old_password")
-    new_pass = request.forms.get("new_password")
     nickname = request.forms.get("nickname")
+    old_password = request.forms.get("old_password")
+    new_password = request.forms.get("new_password")
 
-    q = users.find({"nickname" : nickname}, {"password": 1})
-
-    if passValidate(old_pass, q[0]['password']) == False: return template('info_msg.html', msg = "ERROR: Usuario o contraseña incorrectos.")
+    user = users.find({'_id' : nickname})
     
-    encryptNewPassword = encrypt(new_pass)
-
-    users.update({"nickname" : nickname}, {"$set": {"password": encryptNewPassword}})
-
-    return template('info_msg.html', msg = "La contraseña del usuario " + nickname + " ha sido modificada.")
-    
+    try:
+    	if passwordIsCorrect(old_password, user[0]['password']):
+    		newPasswordEncrypted = encrypt(new_password)
+    		users.update_one({'_id' : nickname}, {'$set' : {'password' : newPasswordEncrypted}})
+    		return template("correcto", message="La contraseña del usuario " + nickname + " ha sido modificada.")
+    	else:
+    		return template("mensaje_de_error", mensajeDeError="Usuario o contraseña incorrectos.")
+    except Exception as e:
+    	return template("mensaje_de_error", mensajeDeError="Usuario o contraseña incorrectos.")
 
 @post('/login')
 def login():
-    
-    password = request.forms.get("password")
-    nickname = request.forms.get("nickname")
+	nickname = request.forms.get("nickname")
+	password = request.forms.get("password")
 
-    q = users.find({"nickname" : nickname}, {"_id": 0, "password": 1, "name": 1})
+	user = users.find({'_id' : nickname})
 
-    msg = "Bienvenido usuario " + q[0]['name'] + "."
-
-    if passValidate(password, q[0]['password']): return template('info_msg.html', msg = msg)
-    else : return template('info_msg.html', msg = "ERROR: Usuario o contraseña incorrectos.")
-
+	try:
+		if passwordIsCorrect(password, user[0]['password']):
+			return template("correcto", message="Bienvenido " + user[0]['name'])
+		else:
+			return template("mensaje_de_error", mensajeDeError="Usuario o contraseña incorrectos.")
+	except Exception as e:
+		return template("mensaje_de_error", mensajeDeError="Usuario o contraseña incorrectos.")
 
 ##############
 # APARTADO 2 #
 ##############
 
 # 
-# Explicación detallada de cómo se genera la semilla aleatoria, cómo se construye
-# la URL de registro en Google Authenticator y cómo se genera el código QR
+# La semilla aleatoria se genera haciendo una cadena aleatoria de 16 caracteres y se codifica
+# en base32. Esta semilla se muestra al usuario y es la cadena de texto que se utiliza para
+# generar el código QR. El código QR se genera con la API especificada en el enunciado, 
+# insertando una etiqueta <img> en la plantilla para que haga una petición GET a una URL.
 #
+
+
+
+def generateRandomSeed():
+	randomSeed = ''
+	ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+	chars=[]
+	for i in range(16):
+		chars.append(random.choice(ALPHABET))
+
+	randomSeed = randomSeed.join(chars)
+
+	return randomSeed
+
+def encodeBase32(randomSeed):
+	return base64.b32encode(randomSeed.encode("UTF-8"))
+
+def decode(seed):
+	return base64.b32decode(seed.encode("UTF-8"))
+
+def getTOTP(secret):
+	return otp.get_totp(secret)
+
+def isValidTOTP(token, secret):
+	return otp.valid_totp(token, secret)
+
 
 @post('/signup_totp')
 def signup_totp():
+	randomSeed = generateRandomSeed()
+	randomSeed = encodeBase32(randomSeed)
+
+	nickname = request.forms.get("nickname")
+	name = request.forms.get("name")
+	country = request.forms.get("country")
+	email = request.forms.get("email")
+	password = request.forms.get("password")
+	password2 = request.forms.get("password2")
+
+	if password != password2:
+		return template("mensaje_de_error", mensajeDeError="Las contraseñas no coinciden.")
+
+	userExists = users.find({'_id' : nickname}).count();
+
+	if userExists:
+		return template("mensaje_de_error", mensajeDeError="El alias de usuario ya existe.")
+
+	encryptedPassword = encrypt(password)
+
+	users.insert_one({'_id' : nickname, 'name' : name, 'country' : country, 'email' : email, 'password' : encryptedPassword, 'seed' : randomSeed})	
+
+	return template("correctoTOTP", message="Bienvenido usuario " + name, seed=randomSeed[:-6])
     
-    pass1 = request.forms.get("password")
-    pass2 = request.forms.get("password2")
-    nickname = request.forms.get("nickname")
-    name = request.forms.get("name")
-    email = request.forms.get("email")
-    country = request.forms.get("country")
 
-    if pass1 != pass2: return template('info_msg.html', msg = "ERROR: Las constraseñas no coinciden.")
-    
-    q = users.find({"nickname" : nickname})
-    if q.count() > 0: return template('info_msg.html', msg = "ERROR: El alias de usuario ya existe.")
-        
-
-
-        
-        
 @post('/login_totp')        
 def login_totp():
-    pass
+	nickname = request.forms.get("nickname")
+	password = request.forms.get("password")
+	totp = request.forms.get("totp")
+
+	encryptedPassword = encrypt(password)
+
+	user = users.find({'_id' : nickname})
+
+	try:
+		if passwordIsCorrect(password, user[0]['password']) and isValidTOTP(totp, user[0]['seed']):
+			return template("correcto", message="Bienvenido " + user[0]['name'])
+		else:
+			return template("mensaje_de_error", mensajeDeError="Usuario o contraseña incorrectos.")
+	except Exception as e:
+		print (e)
+		return template("mensaje_de_error", mensajeDeError="Usuario o contraseña incorrectos.")
+
 
     
 if __name__ == "__main__":
