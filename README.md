@@ -18,7 +18,7 @@ The implementation of this project was carried out using:
   
 <br>
  
-![Technologiesg.com/vi/VQnmcBnguPY/maxresdefault.jpg)
+![Technologies](http://www.pybloggers.com/wp-content/uploads/2016/12/realpython.comimagesblog_imagespython-and-mongopython-and-mongo-logos-d1ac5b0d6ef7c94bb2c59288f7f1f8e6dd82fcc3.png)
 
 <br>
  
