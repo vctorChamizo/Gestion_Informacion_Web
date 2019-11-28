@@ -2,7 +2,7 @@
 
 This project was born as the need to introduce in one of the most advanced programming languages, Python and to be able to solve through the tools offered by this technology as well as the algorithms and programming patterns, cybersecurity problems in web applications such as injection SQL, delegated authentication or cross-site vulnerabilities.
 
-![Technologies](https://media.giphy.com/media/MFabj1E9mgUsqwVWHu/giphy.gif)
+![Cibersecurity](https://digiinfomedia.online/wp-content/uploads/2019/07/cyber-attack.gif)
 
 ## Documentation
 
